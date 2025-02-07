@@ -25,6 +25,8 @@ const spacingX = 30 + ballRadius * 2;
 
 const ballBounciness = 0.5;
 
+const risk = 8;
+
 const maxMultiplier = 500;
 const minMultiplier = 0.2;
 
@@ -38,7 +40,7 @@ function scoreMultiply(x) {
   // Adjust this exponent to change steepness:
   // p = 2 gives the original quadratic;
   // p > 2 makes the transition steeper (more curved)
-  let exponent = 8;
+  let exponent = risk;
   let halfRows = rows / 2;
   let ratio = Math.abs(x - halfRows) / halfRows; // normalized distance from the center
   let fx =
