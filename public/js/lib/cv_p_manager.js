@@ -194,7 +194,7 @@ class cvh_physics_manager {
     // Display FPS
     this.ctx.fillStyle = "white";
     this.ctx.font = "16px Arial";
-    this.ctx.fillText(`FPS: ${Math.round(this.fps)}`, 10, 20);
+    this.ctx.fillText(`FPS: ${Math.round(this.fps)}`, 40, 20);
 
     dt = dt * 10;
     this.om.objects.forEach((o) => {
@@ -390,6 +390,26 @@ class cvh_physics_manager {
     // If both objects are fixed, no need to resolve collision
     if (a.fixed && b.fixed) return;
 
+    // Call onCollision handlers if they exist
+    if (a.onCollision) a.onCollision(b);
+    if (b.onCollision) b.onCollision(a);
+
+    // Handle onPassthrough event
+    if (
+      (a.fixed && a.collideWithFixedOnly && b.onPassthrough) ||
+      (b.fixed && b.collideWithFixedOnly && a.onPassthrough)
+    ) {
+      console.log("Passthrough");
+      const fixedObj = a.fixed ? a : b;
+      const movingObj = a.fixed ? b : a;
+
+      // Check if object has passed through the center point
+      const prevY = movingObj.y - movingObj.vy * dt;
+      if (prevY <= fixedObj.y && movingObj.y > fixedObj.y) {
+        movingObj.onPassthrough(fixedObj);
+      }
+    }
+
     // Compute the vector between centers using consistent math operations
     const dx = b.x - a.x;
     const dy = b.y - a.y;
@@ -481,70 +501,19 @@ class cvh_physics_manager {
     }
   }
 
-  simulateObjectSteps(object, steps, dt = 1 / 60) {
-    // Create a copy of the object to simulate
-    const simObject = {
-      ...object,
-      x: object.x,
-      y: object.y,
-      vx: object.vx,
-      vy: object.vy,
-      vr: object.vr || 0,
-    };
+  calculatePositionCorrection(a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const distance = Math.hypot(dx, dy);
+    const minDistance = a.r + b.r;
 
-    // Create a temporary quadtree for simulation
-    const simQuadTree = new QuadTree(
-      {
-        x: 0,
-        y: 0,
-        w: this.game.canvas.width,
-        h: this.game.canvas.height,
-      },
-      this.quadTreeCapacity
-    );
-
-    // Insert all fixed objects into the simulation quadtree
-    this.om.objects.forEach((o) => {
-      if (o.fixed) {
-        simQuadTree.insert(o);
-      }
-    });
-
-    // Simulate for the specified number of steps
-    for (let i = 0; i < steps; i++) {
-      // Apply gravity and drag
-      simObject.vy += this.gravity * dt * 10;
-      simObject.vx *= 1 - this.drag * dt * 10;
-      simObject.vy *= 1 - this.drag * dt * 10;
-
-      // Update position
-      simObject.x += simObject.vx * dt * 10;
-      simObject.y += simObject.vy * dt * 10;
-
-      // Check for collisions with fixed objects
-      const range = {
-        x: simObject.x - simObject.r * 2,
-        y: simObject.y - simObject.r * 2,
-        w: simObject.r * 4,
-        h: simObject.r * 4,
+    if (distance < minDistance && distance > 0) {
+      const correction = (minDistance - distance) / distance;
+      return {
+        x: -dx * correction * 0.5,
+        y: -dy * correction * 0.5,
       };
-
-      const potentialCollisions = simQuadTree.query(range);
-
-      for (const other of potentialCollisions) {
-        if (this.checkCollision(simObject, other)) {
-          this.resolveCollision(simObject, other, dt);
-        }
-      }
     }
-
-    // Return the final position and velocity
-    return {
-      x: simObject.x,
-      y: simObject.y,
-      vx: simObject.vx,
-      vy: simObject.vy,
-      vr: simObject.vr,
-    };
+    return { x: 0, y: 0 };
   }
 }
