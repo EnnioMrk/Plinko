@@ -41,7 +41,7 @@ function scoreMultiply(x) {
   // p = 2 gives the original quadratic;
   // p > 2 makes the transition steeper (more curved)
   let exponent = risk;
-  let halfRows = rows / 2;
+  let halfRows = (rows + 2) / 2;
   let ratio = Math.abs(x - halfRows) / halfRows; // normalized distance from the center
   let fx =
     (maxMultiplier - minMultiplier) * Math.pow(ratio, exponent) + minMultiplier;
