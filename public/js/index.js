@@ -6,6 +6,28 @@ const game = new cvh_game(
   [() => window.innerWidth, () => window.innerHeight],
   { backgroundColor: "#000" }
 );
+
+// Initialize money counter
+let money = 100;
+
+// Function to format money with commas and decimals
+function formatMoney(amount) {
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// Add money display to game tick
+game.tick = (dt) => {
+  // Draw money counter
+  game.ctx.fillStyle = "#fff";
+  game.ctx.font = "bold 24px Arial";
+  game.ctx.textAlign = "center";
+  game.ctx.fillText(formatMoney(money), game.canvas.width / 2, 40);
+};
 const om = new cvh_object_manager(game, {
   killOutOfBounds: true,
 });
@@ -25,7 +47,8 @@ const spacingX = 30 + ballRadius * 2;
 
 const ballBounciness = 0.5;
 
-const risk = 8;
+const ballValue = 1;
+const risk = 20;
 
 const maxMultiplier = 500;
 const minMultiplier = 0.2;
@@ -115,6 +138,8 @@ function rgbToHex(r, g, b) {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
+let multiplierLocationY;
+
 // Create the triangle row by row
 for (let row = 2; row < rows + 3; row++) {
   // Calculate number of balls in this row
@@ -127,6 +152,8 @@ for (let row = 2; row < rows + 3; row++) {
   for (let col = 0; col < ballsInRow; col++) {
     if (row == rows + 2) {
       //create rectangles instead
+      multiplierLocationY = startY + row * spacingY - rectangleHeight / 3;
+      console.log(multiplierLocationY);
       const goal = om.create.rectangle(
         rowStartX + col * spacingX - spacingX / 2,
         startY + row * spacingY,
@@ -141,6 +168,7 @@ for (let row = 2; row < rows + 3; row++) {
           text: `${scoreMultiply(col)}x`,
           textColor: "#000",
           collideWithFixedOnly: true,
+          multiplier: scoreMultiply(col),
         }
       );
       continue;
@@ -158,10 +186,12 @@ for (let row = 2; row < rows + 3; row++) {
 let lastSpawnTime = 0;
 const spawnCooldown = 200; // ms cooldown
 
-function dropBall() {
+function dropBall(ballValue) {
   const currentTime = Date.now();
   if (currentTime - lastSpawnTime < spawnCooldown) return;
 
+  let ballCollided = false;
+  money -= ballValue;
   lastSpawnTime = currentTime;
   const ball = om.create.circle(
     startX -
@@ -170,12 +200,22 @@ function dropBall() {
     startY + 10,
     8,
     {
-      fill: "#fff",
+      fill: "#f00",
       bounciness: ballBounciness,
       collideWithFixedOnly: true,
       onPassthrough: (other) => {
-        // Change color on collision
-        ball.fill = "#" + Math.floor(Math.random() * 16777215).toString(16);
+        if (ballCollided) return;
+        console.log("Passthrough");
+        // Update money based on multiplier
+        if (other.multiplier) {
+          money += Math.floor(other.multiplier * ballValue * 100000) / 100000;
+        }
+        ballCollided = true;
+      },
+      update: (o) => {
+        if (o.y >= multiplierLocationY) {
+          om.kill_object(o);
+        }
       },
     }
   );
@@ -183,8 +223,7 @@ function dropBall() {
 
 window.addEventListener("keydown", (e) => {
   if (e.key === " ") {
-    if (om.objects.length > 200) return;
-    dropBall();
+    dropBall(ballValue);
   }
 });
 

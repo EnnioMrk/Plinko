@@ -251,7 +251,7 @@ class cvh_physics_manager {
       this.resolveCollision(a, b, dt);
     });
 
-    this.positionalCorrection(collisions);
+    //this.positionalCorrection(collisions);
   }
   getCollisions(o) {
     const range = {
@@ -269,6 +269,16 @@ class cvh_physics_manager {
         (o.collideWithFixedOnly && !other.fixed) ||
         (other.collideWithFixedOnly && !o.fixed)
       ) {
+        // Handle onPassthrough event
+        if (
+          (o.fixed && o.collideWithFixedOnly && other.onPassthrough) ||
+          (other.fixed && other.collideWithFixedOnly && o.onPassthrough)
+        ) {
+          const fixedObj = o.fixed ? o : other;
+          const movingObj = o.fixed ? other : o;
+
+          movingObj.onPassthrough(fixedObj);
+        }
         return false;
       }
       return this.checkCollision(o, other);
@@ -393,22 +403,6 @@ class cvh_physics_manager {
     // Call onCollision handlers if they exist
     if (a.onCollision) a.onCollision(b);
     if (b.onCollision) b.onCollision(a);
-
-    // Handle onPassthrough event
-    if (
-      (a.fixed && a.collideWithFixedOnly && b.onPassthrough) ||
-      (b.fixed && b.collideWithFixedOnly && a.onPassthrough)
-    ) {
-      console.log("Passthrough");
-      const fixedObj = a.fixed ? a : b;
-      const movingObj = a.fixed ? b : a;
-
-      // Check if object has passed through the center point
-      const prevY = movingObj.y - movingObj.vy * dt;
-      if (prevY <= fixedObj.y && movingObj.y > fixedObj.y) {
-        movingObj.onPassthrough(fixedObj);
-      }
-    }
 
     // Compute the vector between centers using consistent math operations
     const dx = b.x - a.x;
